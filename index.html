@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Correa da Costa — Histórico de Leilões</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js" integrity="sha384-3N9GHhCtN3CQef6tNfqgZlv7sQLYIkcChN+uaTZ7xVdzKYp/SjBNPxa92+hM7EAY" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.104.1/dist/umd/supabase.min.js" integrity="sha384-ZstPgNL30sIz6Hlxmz87Qsg817okoeAfmzXv89YLICmfsKv3pEdQKOokOL2IpVAS" crossorigin="anonymous"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e0e0e0;
+            min-height: 100vh;
+            text-transform: uppercase;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a1d29 0%, #2d1f3d 100%);
+            padding: 24px 32px 16px;
+            border-bottom: 1px solid #2a2d3a;
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .header-left h1 { font-size: 40px; font-weight: 700; color: #fff; }
+        .header-left p { font-size: 14px; color: #8b8fa3; margin-top: 4px; }
+        .header-filters {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .header-filters label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8b8fa3;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .header-filters select {
+            background: #12141c;
+            border: 1px solid #3a3d4a;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 160px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .header-filters select option { text-transform: uppercase; }
+        .header-filters select:hover { border-color: #fbbf24; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+        .section { margin-bottom: 32px; }
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #2a2d3a;
+        }
+        .section-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 700;
+        }
+        .section-icon.rs { background: #3b82f622; color: #3b82f6; }
+        .section-icon.agio { background: #f59e0b22; color: #f59e0b; }
+        .section-icon.arrobarep { background: #06b6d422; color: #06b6d4; }
+        .section-icon.peso { background: #a855f722; color: #a855f7; }
+        .section-icon.correa { background: #fbbf2422; color: #fbbf24; }
+        .section-title { font-size: 18px; font-weight: 600; color: #fff; }
+        .section-subtitle { font-size: 13px; color: #8b8fa3; }
+        .mini-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .mini-card {
+            background: #1a1d29;
+            border: 1px solid #2a2d3a;
+            border-radius: 10px;
+            padding: 16px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center;
+        }
+        .mini-card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b8fa3; margin-bottom: 6px; }
+        .mini-card-value { font-size: 24px; font-weight: 700; }
+        .mini-card-sub { font-size: 11px; color: #6b7280; margin-top: 2px; }
+        .v-green { color: #22c55e; } .v-blue { color: #3b82f6; }
+        .v-amber { color: #f59e0b; } .v-purple { color: #a855f7; }
+        .v-red { color: #ef4444; } .v-cyan { color: #06b6d4; }
+        .v-pink { color: #ec4899; } .v-white { color: #ffffff; }
+        .chart-box {
+            background: #1a1d29; border: 1px solid #2a2d3a;
+            border-radius: 12px; padding: 20px;
+        }
+        .chart-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: #fff; }
+        .chart-container { position: relative; height: 280px; }
+        @media (max-width: 768px) {
+            .container { padding: 16px; }
+            .header-top { flex-direction: column; align-items: flex-start; }
+            .header-filters { flex-direction: column; align-items: flex-start; }
+            .chart-container { height: 200px; }
+        }
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0f1117; z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .login-card {
+            background: #1a1d29; border: 1px solid #2a2d3a; border-radius: 16px;
+            padding: 40px; width: 360px; max-width: 90vw;
+        }
+        .login-card h2 { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+        .login-card p { font-size: 13px; color: #8b8fa3; margin-bottom: 28px; }
+        .login-field { margin-bottom: 16px; }
+        .login-field label { display: block; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 0.5px; color: #8b8fa3; margin-bottom: 6px; }
+        .login-field input {
+            width: 100%; background: #12141c; border: 1px solid #3a3d4a; color: #e0e0e0;
+            padding: 10px 14px; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box;
+        }
+        .login-field input:focus { border-color: #fbbf24; }
+        #login-btn {
+            width: 100%; padding: 12px; background: #fbbf24; color: #0f1117;
+            border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; margin-top: 8px;
+        }
+        #login-btn:hover:not(:disabled) { background: #f59e0b; }
+        #login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        #login-error { color: #ef4444; font-size: 13px; margin-top: 12px; display: none; }
+        #logout-btn {
+            background: transparent; border: 1px solid #3a3d4a; color: #8b8fa3;
+            padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer;
+        }
+        #logout-btn:hover { border-color: #ef4444; color: #ef4444; }
+    </style>
+</head>
+<body>
+    <div id="login-overlay">
+        <div class="login-card">
+            <h2>Correa da Costa</h2>
+            <p>Histórico de Leilões — Acesso Restrito</p>
+            <form id="login-form">
+                <div class="login-field">
+                    <label for="login-email">Login</label>
+                    <input type="text" id="login-email" autocomplete="username" required placeholder="login">
+                </div>
+                <div class="login-field">
+                    <label for="login-password">Senha</label>
+                    <input type="password" id="login-password" autocomplete="current-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" id="login-btn">Entrar</button>
+                <div id="login-error"></div>
+            </form>
+        </div>
+    </div>
+    <div class="header">
+        <div class="header-top">
+            <button id="logout-btn">Sair</button>
+        </div>
+        <div class="header-filters">
+            <div>
+                <label for="filterHistAno">Ano</label>
+                <select id="filterHistAno"><option value="">TODOS</option></select>
+            </div>
+            <div>
+                <label for="filterHistRaca">Raça</label>
+                <select id="filterHistRaca"><option value="">TODAS</option></select>
+            </div>
+            <div>
+                <label for="filterHistCategoria">Categoria</label>
+                <select id="filterHistCategoria"><option value="">TODAS</option></select>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span id="labelComissao" style="white-space:nowrap;font-size:13px;color:#8b8fa3;text-transform:uppercase;">COMISSÃO LEILÃO (4%)</span>
+                <div id="toggleComissaoBtn" role="switch" aria-checked="false" aria-labelledby="labelComissao" tabindex="0" style="position:relative;width:44px;height:24px;background:#3a3d4a;border-radius:24px;cursor:pointer;transition:background .3s;flex-shrink:0;">
+                    <div id="toggleComissaoSlider" style="position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .3s;"></div>
+                </div>
+                <input type="checkbox" id="toggleComissao" style="display:none;">
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span id="toggleIPCALabel" style="white-space:nowrap;font-size:13px;color:#8b8fa3;text-transform:uppercase;">CORRIGIR PELA INFLAÇÃO</span>
+                <div id="toggleIPCABtn" role="switch" aria-checked="false" aria-labelledby="toggleIPCALabel" tabindex="0" style="position:relative;width:44px;height:24px;background:#3a3d4a;border-radius:24px;cursor:pointer;transition:background .3s;flex-shrink:0;">
+                    <div id="toggleIPCASlider" style="position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .3s;"></div>
+                </div>
+                <input type="checkbox" id="toggleIPCA" style="display:none;">
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon correa">R$</div>
+                <div><div class="section-title">R$/Cabeça</div></div>
+            </div>
+            <div class="mini-cards">
+                <div class="mini-card">
+                    <div class="mini-card-label">R$/Cab Mínimo</div>
+                    <div class="mini-card-value v-red" id="hist-rscab-min">-</div>
+                    <div class="mini-card-sub" id="hist-rscab-min-when">-</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-card-label">R$/Cab Médio</div>
+                    <div class="mini-card-value v-white" id="hist-rscab-medio">-</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-card-label">R$/Cab Máximo</div>
+                    <div class="mini-card-value v-green" id="hist-rscab-max">-</div>
+                    <div class="mini-card-sub" id="hist-rscab-max-when">-</div>
+                </div>
+            </div>
+            <div class="chart-box">
+                <h3></h3>
+                <div class="chart-container"><canvas id="chartHistRsCabTimeline"></canvas></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon rs correa">R$</div>
+                <div><div class="section-title">R$/KG</div></div>
+            </div>
+            <div class="mini-cards">
+                <div class="mini-card">
+                    <div class="mini-card-label">R$/kg Mínimo</div>
+                    <div class="mini-card-value v-red" id="hist-rs-min">-</div>
+                    <div class="mini-card-sub" id="hist-rs-min-when">-</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-card-label">R$/kg Médio</div>
+                    <div class="mini-card-value v-white" id="hist-rs-medio">-</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-card-label">R$/kg Máximo</div>
+                    <div class="mini-card-value v-green" id="hist-rs-max">-</div>
+                    <div class="mini-card-sub" id="hist-rs-max-when">-</div>
+                </div>
+            </div>
+            <div class="chart-box">
+                <h3></h3>
+                <div class="chart-container"><canvas id="chartHistRsTimeline"></canvas></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon arrobarep correa">R$</div>
+                <div><div class="section-title">R$/@</div></div>
+            </div>
+            <div class="mini-cards">
+                <div class="mini-card">
+                    <div class="mini-card-label">@ Rep. Mínima</div>
+                    <div class="mini-card-value v-red" id="hist-arrobarep-min">-</div>
+                    <div class="mini-card-sub" id="hist-arrobarep-min-when">-</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-card-label">@ Rep. Média</div>
+                    <div class="mini-card-value v-white" id="hist-arrobarep-medio">-</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-card-label">@ Rep. Máxima</div>
+                    <div class="mini-card-value v-green" id="hist-arrobarep-max">-</div>
+                    <div class="mini-card-sub" id="hist-arrobarep-max-when">-</div>
+                </div>
+            </div>
+            <div class="chart-box">
+                <h3></h3>
+                <div class="chart-container"><canvas id="chartHistArrobaRepTimeline"></canvas></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header" style="justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div class="section-icon peso correa" id="hist-peso-icon">kg</div>
+                    <div><div class="section-title">Peso Médio</div></div>
+                </div>
+                <div>
+                    <select id="filterHistPesoUnidade" style="background:#12141c;border:1px solid #3a3d4a;color:#e0e0e0;padding:8px 12px;border-radius:8px;font-size:14px;cursor:pointer;text-transform:uppercase;">
+                        <option value="kg">KG</option>
+                        <option value="arroba">@</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mini-cards">
+                <div class="mini-card">
+                    <div class="mini-card-label">Peso Mínimo</div>
+                    <div class="mini-card-value v-red" id="hist-peso-min">-</div>
+                    <div class="mini-card-sub" id="hist-peso-min-when">-</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-card-label">Peso Médio</div>
+                    <div class="mini-card-value v-white" id="hist-peso-medio">-</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-card-label">Peso Máximo</div>
+                    <div class="mini-card-value v-green" id="hist-peso-max">-</div>
+                    <div class="mini-card-sub" id="hist-peso-max-when">-</div>
+                </div>
+            </div>
+                <div class="chart-box">
+                    <h3></h3>
+                    <div class="chart-container"><canvas id="chartHistPesoTimeline"></canvas></div>
+                </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon agio correa">%</div>
+                <div>
+                    <div class="section-title">Ágio (%)</div>
+                    <div class="section-subtitle">APENAS 2026 DISPONÍVEL</div>
+                </div>
+            </div>
+            <div id="hist-agio-empty" style="display:none;color:#f59e0b;padding:16px 0;font-size:14px;">
+                Sem dados DATAGRO para calcular ágio neste período.
+            </div>
+            <div id="hist-agio-content">
+                <div class="mini-cards">
+                    <div class="mini-card">
+                        <div class="mini-card-label">Ágio Mínimo</div>
+                        <div class="mini-card-value v-red" id="hist-agio-min">-</div>
+                        <div class="mini-card-sub" id="hist-agio-min-when">-</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="mini-card-label">Ágio Médio</div>
+                        <div class="mini-card-value v-white" id="hist-agio-medio">-</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="mini-card-label">Ágio Máximo</div>
+                        <div class="mini-card-value v-green" id="hist-agio-max">-</div>
+                        <div class="mini-card-sub" id="hist-agio-max-when">-</div>
+                    </div>
+                </div>
+                <div class="chart-box">
+                    <h3></h3>
+                    <div class="chart-container"><canvas id="chartHistAgioTimeline"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        if (typeof Chart === 'undefined') { document.body.innerHTML = '<div style="color:#fff;padding:40px;text-align:center;"><h2>Erro ao carregar bibliotecas</h2><p>Verifique sua conexão com a internet e recarregue a página.</p></div>'; }
+
+        const SUPABASE_URL = "https://ufgezrugvojvxsamoeaq.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_H5gixQo6oP5wpfCY4386uQ_Rsy1IYoq";
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let historico = [];
+        let allHistDatas = [];
+        const allHistCategorias = ["BEZERRO", "BOI MAGRO", "DESMAMA", "GARROTE"];
+
+        async function loadData() {
+            const loginBtn = document.getElementById('login-btn');
+            const loginError = document.getElementById('login-error');
+            if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = 'Carregando...'; }
+            const PAGE_SIZE = 1000;
+            let allData = [], from = 0;
+            while (true) {
+                const { data, error } = await sb.from('leiloes_correa').select('*').range(from, from + PAGE_SIZE - 1);
+                if (error) {
+                    if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Entrar'; }
+                    if (loginError) { loginError.textContent = 'Erro: ' + error.message; loginError.style.display = 'block'; }
+                    return;
+                }
+                allData = allData.concat(data);
+                if (data.length < PAGE_SIZE) break;
+                from += PAGE_SIZE;
+            }
+            historico = allData;
+            allHistDatas = [...new Set(allData.map(r => r.data))].sort((a, b) => {
+                const [da, ma, ya] = a.split('/').map(Number);
+                const [db, mb, yb] = b.split('/').map(Number);
+                return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
+            });
+            while (filterHistAno.options.length > 1) filterHistAno.remove(1);
+            const histAnosLive = [...new Set(allHistDatas.map(getYear))].sort().reverse();
+            histAnosLive.forEach(y => { const o = document.createElement('option'); o.value = y; o.textContent = y; filterHistAno.appendChild(o); });
+            while (filterHistRaca.options.length > 1) filterHistRaca.remove(1);
+            const histRacasRawLive = [...new Set(historico.map(r => r.classificacao))];
+            const histRacasLive = [...histRacaOrder.filter(r => histRacasRawLive.includes(r)), ...histRacasRawLive.filter(r => !histRacaOrder.includes(r)).sort()];
+            histRacasLive.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r.toUpperCase(); filterHistRaca.appendChild(o); });
+            document.getElementById('login-overlay').style.display = 'none';
+            updateHistorico();
+        }
+
+        async function initApp() {
+            const { data: { user } } = await sb.auth.getUser();
+            if (user) {
+                try { await loadData(); }
+                catch (e) {
+                    const loginBtn = document.getElementById('login-btn');
+                    if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Entrar'; }
+                }
+            }
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loginBtn = document.getElementById('login-btn');
+            const loginError = document.getElementById('login-error');
+            loginBtn.disabled = true; loginBtn.textContent = 'Entrando...';
+            loginError.style.display = 'none';
+            const rawLogin = document.getElementById('login-email').value.trim().toLowerCase();
+            const email = rawLogin.includes('@') ? rawLogin : `${rawLogin}@correa.local`;
+            const { error } = await sb.auth.signInWithPassword({
+                email,
+                password: document.getElementById('login-password').value
+            });
+            if (error) {
+                loginBtn.disabled = false; loginBtn.textContent = 'Entrar';
+                loginError.textContent = error.message === 'Invalid login credentials'
+                    ? 'Login ou senha incorretos.'
+                    : error.message;
+                loginError.style.display = 'block';
+            } else {
+                await loadData();
+            }
+        });
+
+        const ipca = {"factors": {"01/2000": 4.720699, "02/2000": 4.71457, "03/2000": 4.704221, "04/2000": 4.684546, "05/2000": 4.684078, "06/2000": 4.673329, "07/2000": 4.599281, "08/2000": 4.539809, "09/2000": 4.529391, "10/2000": 4.523059, "11/2000": 4.508632, "12/2000": 4.482187, "01/2001": 4.456783, "02/2001": 4.436376, "03/2001": 4.419581, "04/2001": 4.394096, "05/2001": 4.376153, "06/2001": 4.353515, "07/2001": 4.296373, "08/2001": 4.266508, "09/2001": 4.254595, "10/2001": 4.219572, "11/2001": 4.189825, "12/2001": 4.162767, "01/2002": 4.141232, "02/2002": 4.126377, "03/2002": 4.101767, "04/2002": 4.069213, "05/2002": 4.060686, "06/2002": 4.043702, "07/2002": 3.996148, "08/2002": 3.970341, "09/2002": 3.941959, "10/2002": 3.890987, "11/2002": 3.776924, "12/2002": 3.699239, "01/2003": 3.617838, "02/2003": 3.561916, "03/2003": 3.518637, "04/2003": 3.484834, "05/2003": 3.463705, "06/2003": 3.468909, "07/2003": 3.461985, "08/2003": 3.450254, "09/2003": 3.42355, "10/2003": 3.413651, "11/2003": 3.402083, "12/2003": 3.384484, "01/2004": 3.358956, "02/2004": 3.338591, "03/2004": 3.322973, "04/2004": 3.310723, "05/2004": 3.293924, "06/2004": 3.270702, "07/2004": 3.241207, "08/2004": 3.218996, "09/2004": 3.208408, "10/2004": 3.194353, "11/2004": 3.172463, "12/2004": 3.145413, "01/2005": 3.127274, "02/2005": 3.108932, "03/2005": 3.090082, "04/2005": 3.06343, "05/2005": 3.048493, "06/2005": 3.049103, "07/2005": 3.041499, "08/2005": 3.036337, "09/2005": 3.025747, "10/2005": 3.003223, "11/2005": 2.986795, "12/2005": 2.976081, "01/2006": 2.958626, "02/2006": 2.946545, "03/2006": 2.933929, "04/2006": 2.92778, "05/2006": 2.924856, "06/2006": 2.931011, "07/2006": 2.925452, "08/2006": 2.92399, "09/2006": 2.917863, "10/2006": 2.908266, "11/2006": 2.899278, "12/2006": 2.885428, "01/2007": 2.872788, "02/2007": 2.860203, "03/2007": 2.849659, "04/2007": 2.842553, "05/2007": 2.834616, "06/2007": 2.826701, "07/2007": 2.819933, "08/2007": 2.806741, "09/2007": 2.801698, "10/2007": 2.793318, "11/2007": 2.782744, "12/2007": 2.762303, "01/2008": 2.747467, "02/2008": 2.73407, "03/2008": 2.721009, "04/2008": 2.706125, "05/2008": 2.684914, "06/2008": 2.665192, "07/2008": 2.651141, "08/2008": 2.643738, "09/2008": 2.636882, "10/2008": 2.62507, "11/2008": 2.615653, "12/2008": 2.60835, "01/2009": 2.59589, "02/2009": 2.58169, "03/2009": 2.576537, "04/2009": 2.564229, "05/2009": 2.552233, "06/2009": 2.543078, "07/2009": 2.53699, "08/2009": 2.53319, "09/2009": 2.527125, "10/2009": 2.520068, "11/2009": 2.509778, "12/2009": 2.500526, "01/2010": 2.481912, "02/2010": 2.462703, "03/2010": 2.449963, "04/2010": 2.436078, "05/2010": 2.425647, "06/2010": 2.425647, "07/2010": 2.425405, "08/2010": 2.424435, "09/2010": 2.413574, "10/2010": 2.395607, "11/2010": 2.375887, "12/2010": 2.361013, "01/2011": 2.341578, "02/2011": 2.322994, "03/2011": 2.304786, "04/2011": 2.287175, "05/2011": 2.276475, "06/2011": 2.273065, "07/2011": 2.269434, "08/2011": 2.261068, "09/2011": 2.249148, "10/2011": 2.239518, "11/2011": 2.227933, "12/2011": 2.216849, "01/2012": 2.204503, "02/2012": 2.194627, "03/2012": 2.190028, "04/2012": 2.176101, "05/2012": 2.168296, "06/2012": 2.166562, "07/2012": 2.157286, "08/2012": 2.148477, "09/2012": 2.1363, "10/2012": 2.12377, "11/2012": 2.111103, "12/2012": 2.094556, "01/2013": 2.076697, "02/2013": 2.064311, "03/2013": 2.054654, "04/2013": 2.043415, "05/2013": 2.035883, "06/2013": 2.030603, "07/2013": 2.029994, "08/2013": 2.025134, "09/2013": 2.01807, "10/2013": 2.006633, "11/2013": 1.995855, "12/2013": 1.97766, "01/2014": 1.966843, "02/2014": 1.953365, "03/2014": 1.935558, "04/2014": 1.922676, "05/2014": 1.913872, "06/2014": 1.906247, "07/2014": 1.906056, "08/2014": 1.901303, "09/2014": 1.890527, "10/2014": 1.88262, "11/2014": 1.873067, "12/2014": 1.85857, "01/2015": 1.835806, "02/2015": 1.81368, "03/2015": 1.790051, "04/2015": 1.777431, "05/2015": 1.764375, "06/2015": 1.750545, "07/2015": 1.739759, "08/2015": 1.73594, "09/2015": 1.726616, "10/2015": 1.712573, "11/2015": 1.695449, "12/2015": 1.679327, "01/2016": 1.658267, "02/2016": 1.643476, "03/2016": 1.636439, "04/2016": 1.626518, "05/2016": 1.613929, "06/2016": 1.6083, "07/2016": 1.59998, "08/2016": 1.592971, "09/2016": 1.591698, "10/2016": 1.58757, "11/2016": 1.584718, "12/2016": 1.579978, "01/2017": 1.573996, "02/2017": 1.568819, "03/2017": 1.564907, "04/2017": 1.562719, "05/2017": 1.55789, "06/2017": 1.561481, "07/2017": 1.557743, "08/2017": 1.554788, "09/2017": 1.552305, "10/2017": 1.545812, "11/2017": 1.541496, "12/2017": 1.534743, "01/2018": 1.530305, "02/2018": 1.525424, "03/2018": 1.524052, "04/2018": 1.520707, "05/2018": 1.514648, "06/2018": 1.495801, "07/2018": 1.490881, "08/2018": 1.492224, "09/2018": 1.485096, "10/2018": 1.478443, "11/2018": 1.481554, "12/2018": 1.479335, "01/2019": 1.474616, "02/2019": 1.468303, "03/2019": 1.457372, "04/2019": 1.449112, "05/2019": 1.447231, "06/2019": 1.447086, "07/2019": 1.444342, "08/2019": 1.442755, "09/2019": 1.443332, "10/2019": 1.44189, "11/2019": 1.434574, "12/2019": 1.418264, "01/2020": 1.415292, "02/2020": 1.411763, "03/2020": 1.410775, "04/2020": 1.415162, "05/2020": 1.42056, "06/2020": 1.416876, "07/2020": 1.411794, "08/2020": 1.408414, "09/2020": 1.399457, "10/2020": 1.387524, "11/2020": 1.375284, "12/2020": 1.356965, "01/2021": 1.353581, "02/2021": 1.34204, "03/2021": 1.329674, "04/2021": 1.325565, "05/2021": 1.314653, "06/2021": 1.307722, "07/2021": 1.295287, "08/2021": 1.284115, "09/2021": 1.269391, "10/2021": 1.253719, "11/2021": 1.241921, "12/2021": 1.232921, "01/2022": 1.226298, "02/2022": 1.214037, "03/2022": 1.194683, "04/2022": 1.182152, "05/2022": 1.176622, "06/2022": 1.168791, "07/2022": 1.176793, "08/2022": 1.181045, "09/2022": 1.18448, "10/2022": 1.177533, "11/2022": 1.172724, "12/2022": 1.165498, "01/2023": 1.159354, "02/2023": 1.149696, "03/2023": 1.141591, "04/2023": 1.134669, "05/2023": 1.132066, "06/2023": 1.132972, "07/2023": 1.131614, "08/2023": 1.129017, "09/2023": 1.12609, "10/2023": 1.123393, "11/2023": 1.120257, "12/2023": 1.114018, "01/2024": 1.109359, "02/2024": 1.100227, "03/2024": 1.098469, "04/2024": 1.094311, "05/2024": 1.0893, "06/2024": 1.087018, "07/2024": 1.082903, "08/2024": 1.083119, "09/2024": 1.078374, "10/2024": 1.072369, "11/2024": 1.068203, "12/2024": 1.062677, "01/2025": 1.06098, "02/2025": 1.04726, "03/2025": 1.041428, "04/2025": 1.03697, "05/2025": 1.03428, "06/2025": 1.031804, "07/2025": 1.029128, "08/2025": 1.030262, "09/2025": 1.02534, "10/2025": 1.024418, "11/2025": 1.022577, "12/2025": 1.019214, "01/2026": 1.015862, "02/2026": 1.0088, "03/2026": 1.0}, "reference_month": "03/2026"};
+
+        const COLORS = { green:'#22c55e', blue:'#3b82f6', amber:'#f59e0b', purple:'#a855f7', red:'#ef4444', cyan:'#06b6d4', pink:'#ec4899' };
+        const HIST_CLASS_COLORS = { 'NELORE':'#60a5fa', 'ANELORADO(A)':'#fbbf24', 'ANELORADO':'#fbbf24', 'CRUZAMENTO INDUSTRIAL':'#34d399', 'CRUZADO(A)':'#a78bfa', 'CRUZADO':'#a78bfa' };
+        const ARROBA_KG = 30;
+        const COMISSAO_RATE = 0.04;
+
+        Chart.defaults.color = '#8b8fa3';
+        Chart.defaults.borderColor = '#2a2d3a';
+        Chart.defaults.plugins.tooltip.callbacks.label = function(ctx) { return ((ctx.dataset.label||'')+': '+fmt(ctx.parsed.y)).toUpperCase(); };
+        Chart.defaults.plugins.tooltip.callbacks.title = function(items) { return items[0].label.toUpperCase(); };
+
+        function fmt(n) { return n.toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}); }
+        function safeMin(arr) { return arr.reduce((a,b) => Math.min(a,b), Infinity); }
+        function safeMax(arr) { return arr.reduce((a,b) => Math.max(a,b), -Infinity); }
+        function getMonthYear(d) { const p=d.split('/'); return p[1]+'/'+p[2]; }
+        function getYear(d) { return d.split('/')[2]; }
+        const MN = { '01':'Janeiro','02':'Fevereiro','03':'Março','04':'Abril','05':'Maio','06':'Junho','07':'Julho','08':'Agosto','09':'Setembro','10':'Outubro','11':'Novembro','12':'Dezembro' };
+        function monthFullLabel(my) { const [m,y]=my.split('/'); return MN[m].toUpperCase()+'/'+y; }
+        function findMinMaxMonth(avgs, keys) { if(!avgs.length) return null; let mi=0,ma=0; for(let i=1;i<avgs.length;i++){if(avgs[i]<avgs[mi])mi=i;if(avgs[i]>avgs[ma])ma=i;} return {minMonth:keys[mi],maxMonth:keys[ma]}; }
+        function debounce(fn, delay) { let t; return function() { clearTimeout(t); t=setTimeout(fn,delay); }; }
+        function getIPCAFactor(dateStr) { const parts=dateStr.split('/'); const key=parts[1]+'/'+parts[2]; return ipca.factors[key]||1; }
+
+        let charts = {};
+        function makeChart(id, cfg) { if(charts[id]) charts[id].destroy(); charts[id]=new Chart(document.getElementById(id),cfg); }
+
+        // Filters init
+        const filterHistAno = document.getElementById('filterHistAno');
+        const filterHistRaca = document.getElementById('filterHistRaca');
+        const filterHistCategoria = document.getElementById('filterHistCategoria');
+
+        const histAnos = [...new Set(allHistDatas.map(getYear))].sort().reverse();
+        histAnos.forEach(y => { const o=document.createElement('option'); o.value=y; o.textContent=y; filterHistAno.appendChild(o); });
+        const histRacaOrder = ['CRUZAMENTO INDUSTRIAL','NELORE','ANELORADO','CRUZADO'];
+        const histRacasRaw = [...new Set(historico.map(r => r.classificacao))];
+        const histRacas = [...histRacaOrder.filter(r=>histRacasRaw.includes(r)), ...histRacasRaw.filter(r=>!histRacaOrder.includes(r)).sort()];
+        histRacas.forEach(r => { const o=document.createElement('option'); o.value=r; o.textContent=r.toUpperCase(); filterHistRaca.appendChild(o); });
+        const histCatOrder = ['BOI MAGRO','GARROTE','BEZERRO','DESMAMA'];
+        const histCatSorted = [...histCatOrder.filter(c=>allHistCategorias.includes(c)), ...allHistCategorias.filter(c=>!histCatOrder.includes(c)).sort()];
+        histCatSorted.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c.toUpperCase(); filterHistCategoria.appendChild(o); });
+
+        // Toggles
+        const toggleComissao = document.getElementById('toggleComissao');
+        const toggleComissaoBtn = document.getElementById('toggleComissaoBtn');
+        const toggleComissaoSlider = document.getElementById('toggleComissaoSlider');
+        toggleComissaoBtn.addEventListener('click', function() {
+            toggleComissao.checked = !toggleComissao.checked;
+            if(toggleComissao.checked){toggleComissaoBtn.style.background='#22c55e';toggleComissaoSlider.style.transform='translateX(20px)';}
+            else{toggleComissaoBtn.style.background='#3a3d4a';toggleComissaoSlider.style.transform='translateX(0)';}
+            this.setAttribute('aria-checked', toggleComissao.checked);
+            updateHistorico();
+        });
+
+        const toggleIPCA = document.getElementById('toggleIPCA');
+        const toggleIPCABtn = document.getElementById('toggleIPCABtn');
+        const toggleIPCASlider = document.getElementById('toggleIPCASlider');
+        const toggleIPCALabel = document.getElementById('toggleIPCALabel');
+        toggleIPCABtn.addEventListener('click', function() {
+            toggleIPCA.checked = !toggleIPCA.checked;
+            if(toggleIPCA.checked){toggleIPCABtn.style.background='#a855f7';toggleIPCASlider.style.transform='translateX(20px)';toggleIPCALabel.textContent='CORRIGIDO PELA INFLAÇÃO';}
+            else{toggleIPCABtn.style.background='#3a3d4a';toggleIPCASlider.style.transform='translateX(0)';toggleIPCALabel.textContent='CORRIGIR PELA INFLAÇÃO';}
+            this.setAttribute('aria-checked', toggleIPCA.checked);
+            updateHistorico();
+        });
+
+
+        document.querySelectorAll('[role="switch"]').forEach(btn => {
+            btn.addEventListener('keydown', function(e) { if(e.key==='Enter'||e.key===' '){e.preventDefault();this.click();} });
+        });
+
+        function updateHistorico() {
+            const fy=filterHistAno.value, fr=filterHistRaca.value, fc=filterHistCategoria.value;
+            const comissaoFator = toggleComissao.checked ? (1+COMISSAO_RATE) : 1;
+            const useIPCA = toggleIPCA.checked;
+
+            let filtered = historico.map(r => {
+                let valorAdj = r.valor;
+                if(comissaoFator!==1) valorAdj = valorAdj*comissaoFator;
+                if(useIPCA) valorAdj = valorAdj*getIPCAFactor(r.data);
+                if(comissaoFator===1 && !useIPCA) return r;
+                return Object.assign({}, r, {
+                    valor: valorAdj,
+                    rs_kg: r.peso>0 ? valorAdj/r.peso : r.rs_kg,
+                    arroba_reposicao: r.peso_arroba>0 ? valorAdj/r.peso_arroba : r.arroba_reposicao
+                });
+            });
+            if(fy) filtered = filtered.filter(r => getYear(r.data)===fy);
+            if(fr) filtered = filtered.filter(r => r.classificacao===fr);
+            if(fc) filtered = filtered.filter(r => r.categoria===fc);
+
+            const ipcaSuffix = useIPCA ? ' (valores em R$ de '+ipca.reference_month+')' : '';
+
+            const months = [...new Set(filtered.map(r => getMonthYear(r.data)))].sort((a,b) => {
+                const [ma,ya]=a.split('/'); const [mb,yb]=b.split('/');
+                return (ya+ma).localeCompare(yb+mb);
+            });
+
+            const clsRaw = [...new Set(filtered.map(r => r.classificacao))];
+            const cls = [...histRacaOrder.filter(r=>clsRaw.includes(r)), ...clsRaw.filter(r=>!histRacaOrder.includes(r)).sort()];
+
+            // R$/CABEÇA
+            const cabByMonth = {};
+            filtered.forEach(r => { if(r.valor>0){const my=getMonthYear(r.data);const d=r.data;if(!cabByMonth[my])cabByMonth[my]={};if(!cabByMonth[my][d])cabByMonth[my][d]=[];cabByMonth[my][d].push(r.valor);} });
+            const cabMonths = months.filter(m => cabByMonth[m]);
+            const cabAvgs = cabMonths.map(m => { const aA=Object.values(cabByMonth[m]).map(v=>v.reduce((a,b)=>a+b,0)/v.length); return aA.reduce((a,b)=>a+b,0)/aA.length; });
+            const cabAvgVal = cabAvgs.length ? cabAvgs.reduce((a,b)=>a+b,0)/cabAvgs.length : 0;
+            if(cabAvgs.length) {
+                const cabMM = findMinMaxMonth(cabAvgs,cabMonths);
+                document.getElementById('hist-rscab-medio').textContent = 'R$ '+fmt(cabAvgVal);
+                document.getElementById('hist-rscab-min').textContent = 'R$ '+fmt(safeMin(cabAvgs));
+                document.getElementById('hist-rscab-min-when').textContent = monthFullLabel(cabMM.minMonth);
+                document.getElementById('hist-rscab-max').textContent = 'R$ '+fmt(safeMax(cabAvgs));
+                document.getElementById('hist-rscab-max-when').textContent = monthFullLabel(cabMM.maxMonth);
+            } else { ['hist-rscab-medio','hist-rscab-min','hist-rscab-max'].forEach(id=>document.getElementById(id).textContent='-'); ['hist-rscab-min-when','hist-rscab-max-when'].forEach(id=>document.getElementById(id).textContent='-'); }
+            const cabLabels = cabMonths.map(m=>{const[mm,yy]=m.split('/');return MN[mm].substring(0,3).toUpperCase()+'/'+yy;});
+            makeChart('chartHistRsCabTimeline', {
+                type:'line',
+                data:{labels:cabLabels, datasets:cls.map(c=>{
+                    const g={};filtered.filter(r=>r.classificacao===c&&r.valor>0).forEach(r=>{const my=getMonthYear(r.data);const d=r.data;if(!g[my])g[my]={};if(!g[my][d])g[my][d]=[];g[my][d].push(r.valor);});
+                    return {label:c,data:cabMonths.map(m=>{if(!g[m])return null;const aA=Object.values(g[m]).map(v=>v.reduce((a,b)=>a+b,0)/v.length);return aA.reduce((a,b)=>a+b,0)/aA.length;}),borderColor:HIST_CLASS_COLORS[c]||COLORS.red,backgroundColor:(HIST_CLASS_COLORS[c]||COLORS.red)+'22',tension:0.3,pointRadius:3,spanGaps:true};
+                })  },
+                options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},annotation:{annotations:{avgLine:{type:'line',yMin:cabAvgVal,yMax:cabAvgVal,borderColor:'#ffffff88',borderWidth:1,borderDash:[6,4],label:{display:true,content:'MÉDIA: R$ '+fmt(cabAvgVal),position:'start',yAdjust:-17,backgroundColor:'#ffffff22',color:'#fff',font:{size:11}}}}}  },scales:{y:{beginAtZero:false,grid:{color:'#1e2130'},ticks:{callback:v=>'R$ '+fmt(v)}},x:{grid:{display:false},ticks:{maxTicksLimit:24}}}}
+            });
+
+            // R$/KG
+            const rsByMonth={};
+            filtered.forEach(r=>{if(r.rs_kg>0){const my=getMonthYear(r.data);const d=r.data;if(!rsByMonth[my])rsByMonth[my]={};if(!rsByMonth[my][d])rsByMonth[my][d]=[];rsByMonth[my][d].push(r.rs_kg);}});
+            const rsMonths=months.filter(m=>rsByMonth[m]);
+            const rsAvgs=rsMonths.map(m=>{const aA=Object.values(rsByMonth[m]).map(v=>v.reduce((a,b)=>a+b,0)/v.length);return aA.reduce((a,b)=>a+b,0)/aA.length;});
+            const rsAvgVal=rsAvgs.length?rsAvgs.reduce((a,b)=>a+b,0)/rsAvgs.length:0;
+            if(rsAvgs.length){
+                const rsMM=findMinMaxMonth(rsAvgs,rsMonths);
+                document.getElementById('hist-rs-medio').textContent='R$ '+fmt(rsAvgVal);
+                document.getElementById('hist-rs-min').textContent='R$ '+fmt(safeMin(rsAvgs));
+                document.getElementById('hist-rs-min-when').textContent=monthFullLabel(rsMM.minMonth);
+                document.getElementById('hist-rs-max').textContent='R$ '+fmt(safeMax(rsAvgs));
+                document.getElementById('hist-rs-max-when').textContent=monthFullLabel(rsMM.maxMonth);
+            }else{['hist-rs-medio','hist-rs-min','hist-rs-max'].forEach(id=>document.getElementById(id).textContent='-');['hist-rs-min-when','hist-rs-max-when'].forEach(id=>document.getElementById(id).textContent='-');}
+            const rsLabels=rsMonths.map(m=>{const[mm,yy]=m.split('/');return MN[mm].substring(0,3).toUpperCase()+'/'+yy;});
+            makeChart('chartHistRsTimeline',{
+                type:'line',
+                data:{labels:rsLabels,datasets:cls.map(c=>{
+                    const g={};filtered.filter(r=>r.classificacao===c&&r.rs_kg>0).forEach(r=>{const my=getMonthYear(r.data);const d=r.data;if(!g[my])g[my]={};if(!g[my][d])g[my][d]=[];g[my][d].push(r.rs_kg);});
+                    return {label:c,data:rsMonths.map(m=>{if(!g[m])return null;const aA=Object.values(g[m]).map(v=>v.reduce((a,b)=>a+b,0)/v.length);return aA.reduce((a,b)=>a+b,0)/aA.length;}),borderColor:HIST_CLASS_COLORS[c]||COLORS.red,backgroundColor:(HIST_CLASS_COLORS[c]||COLORS.red)+'22',tension:0.3,pointRadius:3,spanGaps:true};
+                })  },
+                options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},annotation:{annotations:{avgLine:{type:'line',yMin:rsAvgVal,yMax:rsAvgVal,borderColor:'#ffffff88',borderWidth:1,borderDash:[6,4],label:{display:true,content:'MÉDIA: R$ '+fmt(rsAvgVal),position:'start',yAdjust:-17,backgroundColor:'#ffffff22',color:'#fff',font:{size:11}}}}}  },scales:{y:{beginAtZero:false,grid:{color:'#1e2130'},ticks:{callback:v=>'R$ '+fmt(v)}},x:{grid:{display:false},ticks:{maxTicksLimit:24}}}}
+            });
+
+            // PESO MÉDIO
+            const pesoUnit=document.getElementById('filterHistPesoUnidade').value;
+            const isArroba=pesoUnit==='arroba';
+            const unitLabel=isArroba?' @':' kg';
+            document.getElementById('hist-peso-icon').textContent=isArroba?'@':'kg';
+            const pesoByMonth={};
+            filtered.forEach(r=>{const pv=isArroba?r.peso_arroba:r.peso;if(pv>0){const my=getMonthYear(r.data);const d=r.data;if(!pesoByMonth[my])pesoByMonth[my]={};if(!pesoByMonth[my][d])pesoByMonth[my][d]=[];pesoByMonth[my][d].push(pv);}});
+            const pesoMonths=months.filter(m=>pesoByMonth[m]);
+            const pesoAvgs=pesoMonths.map(m=>{const aA=Object.values(pesoByMonth[m]).map(v=>v.reduce((a,b)=>a+b,0)/v.length);return aA.reduce((a,b)=>a+b,0)/aA.length;});
+            const pesoAvgVal=pesoAvgs.length?pesoAvgs.reduce((a,b)=>a+b,0)/pesoAvgs.length:0;
+            if(pesoAvgs.length){
+                const pesoMM=findMinMaxMonth(pesoAvgs,pesoMonths);
+                document.getElementById('hist-peso-medio').textContent=fmt(pesoAvgVal)+unitLabel;
+                document.getElementById('hist-peso-min').textContent=fmt(safeMin(pesoAvgs))+unitLabel;
+                document.getElementById('hist-peso-min-when').textContent=monthFullLabel(pesoMM.minMonth);
+                document.getElementById('hist-peso-max').textContent=fmt(safeMax(pesoAvgs))+unitLabel;
+                document.getElementById('hist-peso-max-when').textContent=monthFullLabel(pesoMM.maxMonth);
+            }else{['hist-peso-medio','hist-peso-min','hist-peso-max'].forEach(id=>document.getElementById(id).textContent='-');['hist-peso-min-when','hist-peso-max-when'].forEach(id=>document.getElementById(id).textContent='-');}
+            const pesoLabels=pesoMonths.map(m=>{const[mm,yy]=m.split('/');return MN[mm].substring(0,3).toUpperCase()+'/'+yy;});
+            makeChart('chartHistPesoTimeline',{
+                type:'line',
+                data:{labels:pesoLabels,datasets:cls.map(c=>{
+                    const g={};filtered.filter(r=>r.classificacao===c&&(isArroba?r.peso_arroba:r.peso)>0).forEach(r=>{const my=getMonthYear(r.data);const d=r.data;if(!g[my])g[my]={};if(!g[my][d])g[my][d]=[];g[my][d].push(isArroba?r.peso_arroba:r.peso);});
+                    return {label:c,data:pesoMonths.map(m=>{if(!g[m])return null;const aA=Object.values(g[m]).map(v=>v.reduce((a,b)=>a+b,0)/v.length);return aA.reduce((a,b)=>a+b,0)/aA.length;}),borderColor:HIST_CLASS_COLORS[c]||COLORS.red,backgroundColor:(HIST_CLASS_COLORS[c]||COLORS.red)+'22',tension:0.3,pointRadius:3,spanGaps:true};
+                })  },
+                options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},annotation:{annotations:{avgLine:{type:'line',yMin:pesoAvgVal,yMax:pesoAvgVal,borderColor:'#ffffff88',borderWidth:1,borderDash:[6,4],label:{display:true,content:'MÉDIA: '+fmt(pesoAvgVal)+unitLabel,position:'start',yAdjust:-17,backgroundColor:'#ffffff22',color:'#fff',font:{size:11}}}}}  },scales:{y:{beginAtZero:false,grid:{color:'#1e2130'},ticks:{callback:v=>fmt(v)+unitLabel}},x:{grid:{display:false},ticks:{maxTicksLimit:24}}}}
+            });
+
+            // @ REPOSIÇÃO
+            const arByMonth={};
+            filtered.forEach(r=>{if(r.arroba_reposicao>0){const my=getMonthYear(r.data);const d=r.data;if(!arByMonth[my])arByMonth[my]={};if(!arByMonth[my][d])arByMonth[my][d]=[];arByMonth[my][d].push(r.arroba_reposicao);}});
+            const arMonths=months.filter(m=>arByMonth[m]);
+            const arAvgs=arMonths.map(m=>{const aA=Object.values(arByMonth[m]).map(v=>v.reduce((a,b)=>a+b,0)/v.length);return aA.reduce((a,b)=>a+b,0)/aA.length;});
+            const arAvgVal=arAvgs.length?arAvgs.reduce((a,b)=>a+b,0)/arAvgs.length:0;
+            if(arAvgs.length){
+                const arMM=findMinMaxMonth(arAvgs,arMonths);
+                document.getElementById('hist-arrobarep-medio').textContent='R$ '+fmt(arAvgVal);
+                document.getElementById('hist-arrobarep-min').textContent='R$ '+fmt(safeMin(arAvgs));
+                document.getElementById('hist-arrobarep-min-when').textContent=monthFullLabel(arMM.minMonth);
+                document.getElementById('hist-arrobarep-max').textContent='R$ '+fmt(safeMax(arAvgs));
+                document.getElementById('hist-arrobarep-max-when').textContent=monthFullLabel(arMM.maxMonth);
+            }else{['hist-arrobarep-medio','hist-arrobarep-min','hist-arrobarep-max'].forEach(id=>document.getElementById(id).textContent='-');['hist-arrobarep-min-when','hist-arrobarep-max-when'].forEach(id=>document.getElementById(id).textContent='-');}
+            const arLabels=arMonths.map(m=>{const[mm,yy]=m.split('/');return MN[mm].substring(0,3).toUpperCase()+'/'+yy;});
+            makeChart('chartHistArrobaRepTimeline',{
+                type:'line',
+                data:{labels:arLabels,datasets:cls.map(c=>{
+                    const g={};filtered.filter(r=>r.classificacao===c&&r.arroba_reposicao>0).forEach(r=>{const my=getMonthYear(r.data);const d=r.data;if(!g[my])g[my]={};if(!g[my][d])g[my][d]=[];g[my][d].push(r.arroba_reposicao);});
+                    return {label:c,data:arMonths.map(m=>{if(!g[m])return null;const aA=Object.values(g[m]).map(v=>v.reduce((a,b)=>a+b,0)/v.length);return aA.reduce((a,b)=>a+b,0)/aA.length;}),borderColor:HIST_CLASS_COLORS[c]||COLORS.red,backgroundColor:(HIST_CLASS_COLORS[c]||COLORS.red)+'22',tension:0.3,pointRadius:3,spanGaps:true};
+                })  },
+                options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},annotation:{annotations:{avgLine:{type:'line',yMin:arAvgVal,yMax:arAvgVal,borderColor:'#ffffff88',borderWidth:1,borderDash:[6,4],label:{display:true,content:'MÉDIA: R$ '+fmt(arAvgVal),position:'start',yAdjust:-17,backgroundColor:'#ffffff22',color:'#fff',font:{size:11}}}}}  },scales:{y:{beginAtZero:false,grid:{color:'#1e2130'},ticks:{callback:v=>'R$ '+fmt(v)}},x:{grid:{display:false},ticks:{maxTicksLimit:24}}}}
+            });
+
+            // ÁGIO
+            const agioByMonth={};
+            filtered.forEach(r=>{if(r.agio_calc!==null&&r.agio_calc!==undefined){const my=getMonthYear(r.data);const d=r.data;if(!agioByMonth[my])agioByMonth[my]={};if(!agioByMonth[my][d])agioByMonth[my][d]=[];agioByMonth[my][d].push(r.agio_calc);}});
+            const agioMonths=months.filter(m=>agioByMonth[m]);
+            const agioAvgs=agioMonths.map(m=>{const aA=Object.values(agioByMonth[m]).map(v=>v.reduce((a,b)=>a+b,0)/v.length);return aA.reduce((a,b)=>a+b,0)/aA.length;});
+            const agioAvgVal=agioAvgs.length?agioAvgs.reduce((a,b)=>a+b,0)/agioAvgs.length:0;
+            const hasAgioData=agioAvgs.length>0;
+            document.getElementById('hist-agio-empty').style.display=hasAgioData?'none':'block';
+            document.getElementById('hist-agio-content').style.display=hasAgioData?'block':'none';
+            if(hasAgioData){
+                const agioMM=findMinMaxMonth(agioAvgs,agioMonths);
+                document.getElementById('hist-agio-medio').textContent=fmt(agioAvgVal)+'%';
+                document.getElementById('hist-agio-min').textContent=fmt(safeMin(agioAvgs))+'%';
+                document.getElementById('hist-agio-min-when').textContent=monthFullLabel(agioMM.minMonth);
+                document.getElementById('hist-agio-max').textContent=fmt(safeMax(agioAvgs))+'%';
+                document.getElementById('hist-agio-max-when').textContent=monthFullLabel(agioMM.maxMonth);
+                const agioLabels=agioMonths.map(m=>{const[mm,yy]=m.split('/');return MN[mm].substring(0,3).toUpperCase()+'/'+yy;});
+                makeChart('chartHistAgioTimeline',{
+                    type:'line',
+                    data:{labels:agioLabels,datasets:cls.map(c=>{
+                        const g={};filtered.filter(r=>r.classificacao===c&&r.agio_calc!==null&&r.agio_calc!==undefined).forEach(r=>{const my=getMonthYear(r.data);const d=r.data;if(!g[my])g[my]={};if(!g[my][d])g[my][d]=[];g[my][d].push(r.agio_calc);});
+                        return {label:c,data:agioMonths.map(m=>{if(!g[m])return null;const aA=Object.values(g[m]).map(v=>v.reduce((a,b)=>a+b,0)/v.length);return aA.reduce((a,b)=>a+b,0)/aA.length;}),borderColor:HIST_CLASS_COLORS[c]||'#fbbf24',backgroundColor:(HIST_CLASS_COLORS[c]||'#fbbf24')+'22',tension:0.3,pointRadius:4,spanGaps:true};
+                    })  },
+                    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},annotation:{annotations:{avgLine:{type:'line',yMin:agioAvgVal,yMax:agioAvgVal,borderColor:'#ffffff88',borderWidth:1,borderDash:[6,4],label:{display:true,content:'MÉDIA: '+fmt(agioAvgVal)+'%',position:'start',yAdjust:-17,backgroundColor:'#ffffff22',color:'#fff',font:{size:11}}}}}  },scales:{y:{beginAtZero:false,grid:{color:'#1e2130'},ticks:{callback:v=>fmt(v)+'%'}},x:{grid:{display:false},ticks:{maxTicksLimit:24}}}}
+                });
+            }else{
+                ['hist-agio-medio','hist-agio-min','hist-agio-max'].forEach(id=>document.getElementById(id).textContent='-');
+                ['hist-agio-min-when','hist-agio-max-when'].forEach(id=>document.getElementById(id).textContent='-');
+            }
+        }
+
+        const debouncedHistorico = debounce(updateHistorico, 150);
+        filterHistAno.addEventListener('change', debouncedHistorico);
+        filterHistRaca.addEventListener('change', debouncedHistorico);
+        filterHistCategoria.addEventListener('change', debouncedHistorico);
+        document.getElementById('filterHistPesoUnidade').addEventListener('change', debouncedHistorico);
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await sb.auth.signOut();
+            location.reload();
+        });
+
+        initApp();
+    </script>
+</body>
+</html>
