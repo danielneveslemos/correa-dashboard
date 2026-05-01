@@ -452,7 +452,7 @@
         if (typeof Chart === 'undefined') { document.body.innerHTML = '<div style="color:#fff;padding:40px;text-align:center;"><h2>Erro ao carregar bibliotecas</h2><p>Verifique sua conexão com a internet e recarregue a página.</p></div>'; }
 
         const SUPABASE_URL = "https://ufgezrugvojvxsamoeaq.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_H5gixQo6oP5wpfCY4386uQ_Rsy1IYoq";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmZ2V6cnVndm9qdnhzYW1vZWFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMzg4OTAsImV4cCI6MjA5MjcxNDg5MH0.uiev_z3IKKuCM8kIz4tOOkJBAXc0bq17Hp_gRgAFAt4";
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let historico = [];
@@ -460,6 +460,7 @@
         const allHistCategorias = ["BEZERRO", "BOI MAGRO", "DESMAMA", "GARROTE"];
 
         async function loadData() {
+            console.log('Login successful, attempting to load data from leiloes_correa table');
             const loginBtn = document.getElementById('login-btn');
             const loginError = document.getElementById('login-error');
             if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = 'Carregando...'; }
@@ -469,11 +470,17 @@
                 const { data, error } = await sb.from('leiloes_correa').select('*').range(from, from + PAGE_SIZE - 1);
                 if (error) {
                     if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Entrar'; }
-                    if (loginError) { loginError.textContent = 'Erro: ' + error.message; loginError.style.display = 'block'; }
+                    console.error('Supabase error details:', error);
+                    console.error('Error code:', error.code);
+                    console.error('Error message:', error.message);
+                    console.error('Error details:', error.details);
+                    console.error('Error hint:', error.hint);
+                    const errorMsg = 'Erro: ' + error.message + (error.hint ? ' (Dica: ' + error.hint + ')' : '');
+                    if (loginError) { loginError.textContent = errorMsg; loginError.style.display = 'block'; }
                     return;
                 }
                 allData = allData.concat(data);
-                if (data.length < PAGE_SIZE) break;
+                if (!data || data.length < PAGE_SIZE) break;
                 from += PAGE_SIZE;
             }
             historico = allData;
@@ -486,7 +493,7 @@
             const histAnosLive = [...new Set(allHistDatas.map(getYear))].sort().reverse();
             histAnosLive.forEach(y => { const o = document.createElement('option'); o.value = y; o.textContent = y; filterHistAno.appendChild(o); });
             while (filterHistRaca.options.length > 1) filterHistRaca.remove(1);
-            const histRacasRawLive = [...new Set(historico.map(r => r.classificacao))];
+            const histRacasRawLive = [...new Set(historico.map(r => r.classificacao).filter(Boolean))];
             const histRacasLive = [...histRacaOrder.filter(r => histRacasRawLive.includes(r)), ...histRacasRawLive.filter(r => !histRacaOrder.includes(r)).sort()];
             histRacasLive.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r.toUpperCase(); filterHistRaca.appendChild(o); });
             document.getElementById('login-overlay').style.display = 'none';
@@ -523,7 +530,15 @@
                     : error.message;
                 loginError.style.display = 'block';
             } else {
-                await loadData();
+                try {
+                    await loadData();
+                } catch (e) {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Entrar';
+                    loginError.textContent = 'Erro ao carregar dados. Tente novamente.';
+                    loginError.style.display = 'block';
+                    console.error('loadData error:', e);
+                }
             }
         });
 
